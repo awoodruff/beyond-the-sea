@@ -279,14 +279,8 @@ function drawFrame () {
       // if (p.logit){
       //   console.log(p.current, p.length)
       // }
-      if (p.removeCount !== undefined) {
-        if (p.removeCount == 20) {
-          toRemove.push(p.index);
-          return;
-        }
-        p.removeCount ++;
-      } else if (p.current >= p.length || p.length == 0){
-        p.removeCount = 0;
+      if (p.current >= p.length || p.length == 0){
+        toRemove.push(p.index);
         if (p.next) {
           toAppend.push(p.next);
         } else if (p.callback) {
@@ -297,7 +291,6 @@ function drawFrame () {
         var pt1 = p.path.getPointAtLength(Math.min(p.length, p.current + step));
         if (Math.abs(pt1.x - pt0.x) > 100) {
           // something is jacked up; quit this line
-          p.removeCount = 0;
           if (p.next) {
             toAppend.push(p.next);
           } else if (p.callback) {
@@ -309,8 +302,6 @@ function drawFrame () {
         ctx.lineTo(pt1.x, pt1.y);
       } 
       p.current += step;
-      if (p.current > p.length) p.current = p.length;
-      if (p.length == 0) p.removeCount = 15;
     });
     ctx.strokeStyle = color;
     ctx.stroke();
@@ -321,7 +312,6 @@ function drawFrame () {
     for (var n = 0; n < toRemove.length; n++) {
       paths.splice(toRemove[n], 1);
     }
-    if (!paths.length) clearMap = true;
   }
   if (toAppend.length) {
     paths = paths.concat(toAppend);
