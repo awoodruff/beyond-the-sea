@@ -98,11 +98,14 @@ d3.json('countries.geojson', function (json) {
     })
 });
 
-d3.json('arcs.json', function (error, json) {
+var countries = [];
+
+
+d3.json('arcs2.json', function (error, json) {
   //console.log(error, json)
   arcData = json;
   arcData.forEach(function(d) {
-    
+    if (d[1] && countries.indexOf(d[1]) == -1) countries.push(d[1]);
   })
   dots.selectAll('circle')
     .data(arcData)
@@ -188,6 +191,16 @@ function drawCountryArcs (countryName) {
   var points = arcData
     .filter(function (d) {
       return d[1] == countryName;
+    })
+    .forEach(function(d){
+      drawArc(d, 300)
+    });
+}
+
+function drawContinentArcs (continentName) {
+  var points = arcData
+    .filter(function (d) {
+      return d[2] == continentName;
     })
     .forEach(function(d){
       drawArc(d, 300)
