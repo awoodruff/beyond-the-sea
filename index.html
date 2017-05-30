@@ -42,7 +42,7 @@ svg.append('path')
   .attr('d', path);
 
 var land = svg.append('g');
-var arcs = svg.append('g');
+var arcs = svg.append('g')//.attr('filter', 'url(#glow)');
 var bigDots = svg.append('g').style('opacity',0);
 var dots = svg.append('g').style('opacity', .1);
 
@@ -87,7 +87,7 @@ d3.json('arcs.json', function (error, json) {
     .attr('cy', function(d){
       return projection(d[0][0][0])[1];
     })
-    .on('mouseover', function(d){
+    .on('mouseover touchmove', function(d){
       drawArc(d);
     });
 
@@ -102,7 +102,7 @@ d3.json('arcs.json', function (error, json) {
     .attr('cy', function(d){
       return projection(d[0][0][0])[1];
     })
-    .on('mouseover', function(d){
+    .on('mouseover touchmove', function(d){
       drawArc(d);
     });
 	// arcs.selectAll('path')
@@ -144,7 +144,7 @@ function drawArc (d, pxPerSec) {
     .style('stroke', function(){
       return colors[d[4]]
     })
-    .style('stroke-width', 2)
+    .style('stroke-width', 4)
     .style('stroke-linecap', 'round')
     .attr('d', path)
     
@@ -170,14 +170,14 @@ function drawArc (d, pxPerSec) {
       .style('stroke', function(){
         return colors[d[4]]
       })
-      .style('stroke-width', 2)
+      .style('stroke-width', 4)
       .style('stroke-linecap', 'round')
       .attr('d', path);
       
     arc1.attr('stroke-dasharray', l1 + ', ' + l1)
       .attr('stroke-dashoffset', l1);
     arc1Bright.attr('stroke-dasharray', dashLength + ', ' + (l1+dashLength))
-      .attr('stroke-dashoffset', 4);
+      .attr('stroke-dashoffset', dashLength);
   }
   var duration = Math.max(500,1000*totalL/pxPerSec);
   arc0.attr('stroke-dasharray', l0 + ', ' + l0)
@@ -190,7 +190,6 @@ function drawArc (d, pxPerSec) {
     //  d3.select(this).remove();
     });
   arc0Bright.attr('stroke-dasharray', dashLength + ', ' + (l0+dashLength))
-    .attr('filter', 'url(#glow)')
     .attr('stroke-dashoffset', dashLength)
     .transition()
     .ease(line1 ? d3.easeCubicIn : d3.easeCubic)
@@ -212,7 +211,6 @@ function drawArc (d, pxPerSec) {
         //d3.select(this).remove();
       });
     arc1Bright
-      .attr('filter', 'url(#glow)')
       .transition()
       .delay(delay)
       .ease(d3.easeCubicOut)
@@ -245,11 +243,26 @@ function drawRandom () {
     drawArc(arcData[i2]);
     var i3 = Math.floor(Math.random() * arcData.length);
     drawArc(arcData[i3]);
-  }, 10);
+  }, 5);
 }
 
 function stop () {
   clearInterval(interval);
+}
+
+var path2 = d3.geoPath();
+path2.context(bufferContext());
+
+
+
+function bufferContext() {
+  var buffer = [];
+  return {
+    moveTo: function(x, y) { buffer.push([x, y]); },
+    lineTo: function(x, y) { buffer.push([x, y]); },
+    closePath: function() {},
+    buffer: function() { var _ = buffer; buffer = []; return _; }
+  };
 }
 
 </script>
