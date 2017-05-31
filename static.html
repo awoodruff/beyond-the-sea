@@ -1,0 +1,240 @@
+<html>
+<head>
+<script src="d3.v4.min.js"></script>
+<script src="d3-geo-projection.v2.min.js"></script>
+<style>
+  svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .arcs path {
+    fill: none;
+  }
+  circle {
+    fill: #8cb4ff;
+  }
+  text {
+    font-family: 'Helvetica';
+    font-size: 10px;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+
+<script>
+
+var width = 1400;
+var height = 700;
+var base = d3.select('body').append('svg')
+  .attr('width', width)
+  .attr('height', height);
+
+var svg = d3.select('body').append('svg')
+	.attr('width', width)
+	.attr('height', height);
+
+var filter = svg.append('defs')
+  .append('filter')
+  .attr('id', 'glow');
+
+filter.append('feGaussianBlur')
+  .attr('stdDeviation', 2.5)
+  .attr('result', 'coloredBlur');
+var merge = filter.append('feMerge');
+merge.append('feMergeNode').attr('in', 'coloredBlur');
+merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+var projection = d3.geoRobinson()
+  .scale(200)
+	.translate([width/2, height/2]);
+var path = d3.geoPath()
+	.projection(projection);
+
+
+base.append('path')
+  .datum({type:'Sphere'})
+  .style('fill', 'rgb(31, 31, 41)')
+  .attr('d', path);
+
+var land = svg.append('g');
+var arcs = svg.append('g').attr('class', 'arcs');//.attr('filter', 'url(#glow)');
+var bigDots = svg.append('g').style('opacity',0);
+var dots = svg.append('g').style('opacity', .1);
+var labels = svg.append('g').attr('pointer-events', 'none');
+
+
+var arcData;
+
+var colors = {
+	'Africa': '#fccde5',
+	'Asia': '#b3de69',
+	'North America': '#80b1d3',
+	'South America': '#fdb462',
+	'Europe': '#ccc',
+	'Antarctica': '#8dd3c7',
+	'Oceania': '#ffffb3'
+
+}
+
+d3.json('countries.geojson', function (json) {
+	land.selectAll('path')
+		.data(json.features)
+		.enter()
+		.append('path')
+		.style('fill', '#333')
+		.style('stroke', '#111')
+    .style('stroke-width', 0.5)
+		.attr('d', path)
+    .on('click', function (d) {
+      drawCountryArcs(d.properties.name)
+    })
+});
+
+d3.json('label_points.geojson', function (json) {
+  labels.selectAll('text')
+    .data(json.features)
+    .enter()
+    .append('text')
+    .text(function(d){
+      return d.properties.name;
+    })
+    .attr('text-anchor', 'middle')
+    .attr('x', function(d){ return projection(d.geometry.coordinates)[0] })
+    .attr('y', function(d){ return projection(d.geometry.coordinates)[1] })
+    .style('fill', function(d){
+      return colors[d.properties.continent];
+    })
+})
+
+var countries = [];
+
+
+d3.json('arcs2.json', function (error, json) {
+  //console.log(error, json)
+  arcData = json;
+  arcData.forEach(function(d) {
+    if (d[1] && countries.indexOf(d[1]) == -1) countries.push(d[1]);
+  })
+  dots.selectAll('circle')
+    .data(arcData)
+    .enter()
+    .append('circle')
+    .attr('r',3)
+    .attr('cx', function(d){
+      return projection(d[0][0][0])[0];
+    })
+    .attr('cy', function(d){
+      return projection(d[0][0][0])[1];
+    })
+    .on('mouseover touchstart touchmove', function(d){
+      drawArc(d);
+    });
+
+  bigDots.selectAll('circle')
+    .data(arcData)
+    .enter()
+    .append('circle')
+    .attr('r',7)
+    .attr('cx', function(d){
+      return projection(d[0][0][0])[0];
+    })
+    .attr('cy', function(d){
+      return projection(d[0][0][0])[1];
+    })
+    .on('mouseover', function(d){
+      drawArc(d);
+    });
+	// arcs.selectAll('path')
+	// 	.data(json.features)
+	// 	.enter()
+	// 	.append('path')
+	// 	.style('fill', 'none')
+	// 	.style('stroke', '#999')
+	// 	//.attr('stroke-dasharray', '50, 2000')
+	// 	//.attr('stroke-dashoffset', '-100')
+	// 	.style('opacity', 0.5)
+	// 	.attr('d', path);
+});
+
+var dashLength = 10;
+
+var paths = [];
+
+function drawArc (d, duration) {
+  duration = duration || 1000;
+  var geom = {type:'MultiLineString', coordinates:d[0]};
+  arcs.append('path')
+    .style('stroke', colors[d[4]])
+    .style('opacity', .5)
+    .attr('d', path(geom))
+    .transition()
+    .delay(duration)
+    .duration(500)
+    .style('opacity', 0)
+    .on('end', function(){
+      d3.select(this).remove();
+    });
+  labels.selectAll('text').filter(function(l) {
+    return l.properties.name == d[3];
+  })
+    .style('opacity', 1)
+    .transition()
+    .delay(duration)
+    .duration(500)
+    .style('opacity', 0)
+}
+
+function drawCountryArcs (countryName) {
+  var points = arcData
+    .filter(function (d) {
+      return d[1] == countryName;
+    })
+    .forEach(function(d){
+      drawArc(d, 3000)
+    });
+}
+
+function drawContinentArcs (continentName) {
+  var points = arcData
+    .filter(function (d) {
+      return d[2] == continentName;
+    })
+    .forEach(function(d){
+      drawArc(d, 300)
+    });
+}
+
+var interval;
+function drawRandom () {
+  interval = setInterval(function () {
+    var i = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i]);
+    var i2 = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i2]);
+    var i3 = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i3]);
+  }, 5);
+}
+
+function stop () {
+  clearInterval(interval);
+}
+
+
+
+
+function bufferContext() {
+  var buffer = [];
+  return {
+    moveTo: function(x, y) { buffer.push([x, y]); },
+    lineTo: function(x, y) { buffer.push([x, y]); },
+    closePath: function() {},
+    buffer: function() { var _ = buffer; buffer = []; return _; }
+  };
+}
+
+</script>
+</body>
