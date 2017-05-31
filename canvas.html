@@ -2,17 +2,32 @@
 <head>
 <script src="d3.v4.min.js"></script>
 <script src="d3-geo-projection.v2.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
 <style>
   svg, canvas {
     position: absolute;
     top: 0;
     left: 0;
   }
+  canvas {
+    pointer-events: none;
+  }
   .arcs path {
     display: none;
   }
+  .coastline path {
+    stroke: #8cb4ff;
+    stroke-width: 7;
+    fill: none;
+    stroke-linejoin: round;
+  }
   circle {
     fill: #8cb4ff;
+  }
+  text {
+    font-family: 'Helvetica';
+    font-size: 10px;
+    display: none;
   }
 </style>
 </head>
@@ -26,6 +41,11 @@ var height = 700;
 var base = d3.select('body').append('svg')
   .attr('width', width)
   .attr('height', height);
+
+var svg = d3.select('body').append('svg')
+	.attr('width', width)
+	.attr('height', height);
+
 var canvas = d3.select('body')
   .append('canvas')
   .attr('width', width)
@@ -34,9 +54,6 @@ var ctx = canvas.node().getContext('2d');
 ctx.strokeStyle = 'rgba(0,150,200,.4)';
 ctx.lineWidth = 1;
 ctx.fillStyle = 'rgb(31, 31, 41)';
-var svg = d3.select('body').append('svg')
-	.attr('width', width)
-	.attr('height', height);
 
 var filter = svg.append('defs')
   .append('filter')
@@ -66,10 +83,12 @@ base.append('path')
   .style('fill', 'rgb(31, 31, 41)')
   .attr('d', path);
 
+var coastline = svg.append('g').attr('class', 'coastline').style('opacity', .1);
 var land = svg.append('g');
 var arcs = svg.append('g').attr('class', 'arcs');//.attr('filter', 'url(#glow)');
 var bigDots = svg.append('g').style('opacity',0);
-var dots = svg.append('g').style('opacity', .1);
+var dots = svg.append('g').style('opacity', 0);
+var labels = svg.append('g').attr('pointer-events', 'none');
 
 var arcData;
 
@@ -84,9 +103,13 @@ var colors = {
 
 }
 
-d3.json('countries.geojson', function (json) {
+d3.json('countries.json', function (json) {
+  var features = topojson.feature(json, json.objects.countries).features;
+  coastline.append('path')
+    .datum(topojson.mesh(json, json.objects.countries))
+    .attr('d', path);
 	land.selectAll('path')
-		.data(json.features)
+		.data(features)
 		.enter()
 		.append('path')
 		.style('fill', '#333')
@@ -96,6 +119,25 @@ d3.json('countries.geojson', function (json) {
     .on('click', function (d) {
       drawCountryArcs(d.properties.name)
     })
+});
+
+var labelPoints;
+
+d3.json('label_points.geojson', function (json) {
+  labelPoints = json.features;
+  // labels.selectAll('text')
+  //   .data(json.features)
+  //   .enter()
+  //   .append('text')
+  //   .text(function(d){
+  //     return d.properties.name;
+  //   })
+  //   .attr('text-anchor', 'middle')
+  //   .attr('x', function(d){ return projection(d.geometry.coordinates)[0] })
+  //   .attr('y', function(d){ return projection(d.geometry.coordinates)[1] })
+  //   .style('fill', function(d){
+  //     return colors[d.properties.continent];
+  //   })
 });
 
 var countries = [];
@@ -120,7 +162,10 @@ d3.json('arcs2.json', function (error, json) {
     })
     .on('mouseover touchstart touchmove', function(d){
       drawArc(d);
-    });
+    })
+    .on('click', function(d){
+      if (d[1]) drawCountryArcs(d[1]);
+    })
 
   bigDots.selectAll('circle')
     .data(arcData)
@@ -135,7 +180,10 @@ d3.json('arcs2.json', function (error, json) {
     })
     .on('mouseover', function(d){
       drawArc(d);
-    });
+    })
+    .on('click', function(d){
+      if (d[1]) drawCountryArcs(d[1]);
+    })
 	// arcs.selectAll('path')
 	// 	.data(json.features)
 	// 	.enter()
@@ -176,15 +224,36 @@ function drawArc (d, pxPerSec) {
     pathObject.next = {d: d, color: colors[d[4]], datum: line1, path: arc1.node(), length: arc1.node().getTotalLength(), logit: true, current: 0, callback: function () {
         arc0.remove();
         arc1.remove();
+        // labels.selectAll('text').filter(function(l) {
+        //   return l.properties.name == d[3];
+        // })
+        //   .style('display', 'block')
+        //   .each(function(l){
+        //     if (l.timeout !== undefined) clearTimeout(l.timeout);
+        //     var text = d3.select(this);
+        //     l.timeout = setTimeout(function (){
+        //       text.style('display', 'none')
+        //     }, 1000)
+        //   })
     }};
     //path2(line1);
   } else {
     pathObject.callback = function () {
       arc0.remove();
+      // labels.selectAll('text').filter(function(l) {
+      //   return l.properties.name == d[3];
+      // })
+      //   .style('display', 'block')
+      //   .each(function(l){
+      //     if (l.timeout !== undefined) clearTimeout(l.timeout);
+      //     var text = d3.select(this);
+      //     l.timeout = setTimeout(function (){
+      //       text.style('display', 'none')
+      //     }, 1000)
+      //   })
     }
   }
   paths.push(pathObject);
-  ctx.stroke();
 }
 
 function drawCountryArcs (countryName) {
@@ -217,6 +286,17 @@ function drawRandom () {
     var i3 = Math.floor(Math.random() * arcData.length);
     drawArc(arcData[i3]);
   }, 5);
+}
+
+var n = 0;
+var subset = ['Angola', 'Spain', 'Panama', 'Australia', 'Somalia', 'Uruguay', 'Nigeria', 'Thailand', 'Pakistan', 'United States', 'China', 'France', 'Venezuela'];
+function fireworks () {
+  interval = setInterval(function(){ 
+    drawCountryArcs(subset[n])
+    n++;
+    if (n==subset.length) n = 0;
+  }, 400);
+
 }
 
 function stop () {
@@ -254,7 +334,7 @@ function drawFrame () {
   
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
-  ctx.globalAlpha = 0.1;
+  ctx.globalAlpha = 0.05;
   ctx.fillRect(0,0,width,height);
   ctx.restore();
 
@@ -273,6 +353,7 @@ function drawFrame () {
   });
 
   for (var color in colorGroups) {
+    var labelsToDraw = [];
     ctx.beginPath();
     var group = colorGroups[color];
     group.forEach(function(p, i) {
@@ -285,16 +366,19 @@ function drawFrame () {
           toAppend.push(p.next);
         } else if (p.callback) {
           p.callback();
+          if (labelsToDraw.indexOf(p.d[3]) == -1) labelsToDraw.push(p.d[3]);
         }
       } else if (p.current < p.length) {
         var pt0 = p.path.getPointAtLength(p.current);
         var pt1 = p.path.getPointAtLength(Math.min(p.length, p.current + step));
         if (Math.abs(pt1.x - pt0.x) > 100) {
           // something is jacked up; quit this line
+          toRemove.push(p.index);
           if (p.next) {
             toAppend.push(p.next);
           } else if (p.callback) {
             p.callback();
+            if (labelsToDraw.indexOf(p.d[3]) == -1) labelsToDraw.push(p.d[3]);
           }
           return;
         }
@@ -303,8 +387,23 @@ function drawFrame () {
       } 
       p.current += step;
     });
+    ctx.fillStyle = null;
     ctx.strokeStyle = color;
     ctx.stroke();
+
+    ctx.font = "10px Helvetica";
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#333';
+    ctx.beginPath();
+    labelsToDraw.forEach(function (l) {
+      var label = labelPoints
+        .filter(function(d){
+          return d.properties.name == l;
+        })[0];
+      var coords = projection(label.geometry.coordinates);
+      ctx.strokeText(l, coords[0] - l.length * 2, coords[1]);
+      ctx.fillText(l, coords[0] - l.length * 2, coords[1]);
+    })
   };
 
   if (toRemove.length) {
