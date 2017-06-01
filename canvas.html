@@ -114,13 +114,13 @@ var bigDots;
 var dots;
 var labels;
 
-
-
 var countries = [];
 
 
 var arcData;
+var paths = [];
 
+var labelPoints;
 var showLabels = true;
 
 var colors = {
@@ -133,14 +133,6 @@ var colors = {
 	'Oceania': '#ffffb3'
 
 }
-
-var labelPoints;
-
-
-
-var dashLength = 10;
-
-var paths = [];
 
 if (window.innerWidth < 450) {
   d3.select('body').classed('mobile', true);
@@ -244,23 +236,9 @@ function initialize () {
 
   d3.json('label_points.geojson', function (json) {
     labelPoints = json.features;
-    // labels.selectAll('text')
-    //   .data(json.features)
-    //   .enter()
-    //   .append('text')
-    //   .text(function(d){
-    //     return d.properties.name;
-    //   })
-    //   .attr('text-anchor', 'middle')
-    //   .attr('x', function(d){ return projection(d.geometry.coordinates)[0] })
-    //   .attr('y', function(d){ return projection(d.geometry.coordinates)[1] })
-    //   .style('fill', function(d){
-    //     return colors[d.properties.continent];
-    //   })
   });
 
   d3.json('arcs2.json', function (error, json) {
-    //console.log(error, json)
     arcData = json;
     arcData.forEach(function(d) {
       if (d[1] && countries.indexOf(d[1]) == -1) countries.push(d[1]);
@@ -299,17 +277,7 @@ function initialize () {
       })
       .on('click', function(d){
         if (d[1]) drawCountryArcs(d[1]);
-      })
-    // arcs.selectAll('path')
-    //  .data(json.features)
-    //  .enter()
-    //  .append('path')
-    //  .style('fill', 'none')
-    //  .style('stroke', '#999')
-    //  //.attr('stroke-dasharray', '50, 2000')
-    //  //.attr('stroke-dashoffset', '-100')
-    //  .style('opacity', 0.5)
-    //  .attr('d', path);
+      }
     loading.remove();
   });
 
@@ -330,8 +298,6 @@ function drawArc (d, pxPerSec) {
 
   var pathObject = {d: d, color: colors[d[4]], datum: line0, path: arc0.node(), length: arc0.node().getTotalLength(), current: 0};
 
-  //path2(line0);
-
   if (geom[1]) {
     line1 = {type:'LineString', coordinates: geom[1]};
     var arc1 = arcs.append('path')
@@ -340,33 +306,10 @@ function drawArc (d, pxPerSec) {
     pathObject.next = {d: d, color: colors[d[4]], datum: line1, path: arc1.node(), length: arc1.node().getTotalLength(), logit: true, current: 0, callback: function () {
         arc0.remove();
         arc1.remove();
-        // labels.selectAll('text').filter(function(l) {
-        //   return l.properties.name == d[3];
-        // })
-        //   .style('display', 'block')
-        //   .each(function(l){
-        //     if (l.timeout !== undefined) clearTimeout(l.timeout);
-        //     var text = d3.select(this);
-        //     l.timeout = setTimeout(function (){
-        //       text.style('display', 'none')
-        //     }, 1000)
-        //   })
     }};
-    //path2(line1);
   } else {
     pathObject.callback = function () {
       arc0.remove();
-      // labels.selectAll('text').filter(function(l) {
-      //   return l.properties.name == d[3];
-      // })
-      //   .style('display', 'block')
-      //   .each(function(l){
-      //     if (l.timeout !== undefined) clearTimeout(l.timeout);
-      //     var text = d3.select(this);
-      //     l.timeout = setTimeout(function (){
-      //       text.style('display', 'none')
-      //     }, 1000)
-      //   })
     }
   }
   paths.push(pathObject);
@@ -409,8 +352,6 @@ var subset = ['Angola', 'Spain', 'Panama', 'Australia', 'Somalia', 'Uruguay', 'N
 function fireworks () {
   interval = setInterval(function(){ 
     drawCountryArcs(countries[parseInt(Math.random() * countries.length)])
-    //n++;
-    //if (n==subset.length) n = 0;
   }, 400);
 
 }
@@ -418,11 +359,6 @@ function fireworks () {
 function stop () {
   clearInterval(interval);
 }
-
-//window.requestAnimationFrame(drawFrame);
-
-// var path2 = d3.geoPath();
-// path2.context(bufferContext());
 
 var clearMap = false;
 var step = 5;
@@ -471,9 +407,6 @@ function drawFrame () {
     ctx.beginPath();
     var group = colorGroups[color];
     group.forEach(function(p, i) {
-      // if (p.logit){
-      //   console.log(p.current, p.length)
-      // }
       if (p.current >= p.length || p.length == 0){
         toRemove.push(p.index);
         if (p.next) {
@@ -530,20 +463,7 @@ function drawFrame () {
   if (toAppend.length) {
     paths = paths.concat(toAppend);
   }
- // window.requestAnimationFrame(drawFrame);
 }
-
-
-function bufferContext() {
-  var buffer = [];
-  return {
-    moveTo: function(x, y) { buffer.push([x, y]); },
-    lineTo: function(x, y) { buffer.push([x, y]); },
-    closePath: function() {},
-    buffer: function() { var _ = buffer; buffer = []; return _; }
-  };
-}
-
 
 d3.select('#fireworks')
   .on('click', function() {
