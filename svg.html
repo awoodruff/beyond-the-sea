@@ -1,0 +1,269 @@
+<html>
+<head>
+<script src="d3.v4.min.js"></script>
+<script src="d3-geo-projection.v2.min.js"></script>
+<style>
+  circle {
+    fill: #8cb4ff;
+  }
+</style>
+</head>
+<body>
+
+
+<script>
+
+var width = 1400;
+var height = 700;
+var svg = d3.select('body').append('svg')
+	.attr('width', width)
+	.attr('height', height);
+
+var filter = svg.append('defs')
+  .append('filter')
+  .attr('id', 'glow');
+
+filter.append('feGaussianBlur')
+  .attr('stdDeviation', 2.5)
+  .attr('result', 'coloredBlur');
+var merge = filter.append('feMerge');
+merge.append('feMergeNode').attr('in', 'coloredBlur');
+merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+var projection = d3.geoRobinson()
+  .scale(200)
+	.translate([width/2, height/2]);
+var path = d3.geoPath()
+	.projection(projection);
+
+svg.append('path')
+  .datum({type:'Sphere'})
+  .style('fill', 'rgb(31, 31, 41)')
+  .attr('d', path);
+
+var land = svg.append('g');
+var arcs = svg.append('g')//.attr('filter', 'url(#glow)');
+var bigDots = svg.append('g').style('opacity',0);
+var dots = svg.append('g').style('opacity', .1);
+
+var arcData;
+
+var colors = {
+	'Africa': '#fccde5',
+	'Asia': '#b3de69',
+	'North America': '#80b1d3',
+	'South America': '#fdb462',
+	'Europe': '#ccc',
+	'Antarctica': '#8dd3c7',
+	'Oceania': '#ffffb3'
+
+}
+
+d3.json('countries.geojson', function (json) {
+	land.selectAll('path')
+		.data(json.features)
+		.enter()
+		.append('path')
+		.style('fill', '#333')
+		.style('stroke', '#111')
+    .style('stroke-width', 0.5)
+		.attr('d', path)
+    .on('click', function (d) {
+      drawCountryArcs(d.properties.name)
+    })
+});
+
+d3.json('arcs.json', function (error, json) {
+  //console.log(error, json)
+  arcData = json;
+  dots.selectAll('circle')
+    .data(arcData)
+    .enter()
+    .append('circle')
+    .attr('r',3)
+    .attr('cx', function(d){
+      return projection(d[0][0][0])[0];
+    })
+    .attr('cy', function(d){
+      return projection(d[0][0][0])[1];
+    })
+    .on('mouseover touchmove', function(d){
+      drawArc(d);
+    });
+
+  bigDots.selectAll('circle')
+    .data(arcData)
+    .enter()
+    .append('circle')
+    .attr('r',7)
+    .attr('cx', function(d){
+      return projection(d[0][0][0])[0];
+    })
+    .attr('cy', function(d){
+      return projection(d[0][0][0])[1];
+    })
+    .on('mouseover touchmove', function(d){
+      drawArc(d);
+    });
+	// arcs.selectAll('path')
+	// 	.data(json.features)
+	// 	.enter()
+	// 	.append('path')
+	// 	.style('fill', 'none')
+	// 	.style('stroke', '#999')
+	// 	//.attr('stroke-dasharray', '50, 2000')
+	// 	//.attr('stroke-dashoffset', '-100')
+	// 	.style('opacity', 0.5)
+	// 	.attr('d', path);
+});
+
+var dashLength = 10;
+
+function drawArc (d, pxPerSec) {
+  pxPerSec = pxPerSec || 300;
+  //console.log(arguments)
+  //console.log(d)
+  var geom = d[0];
+  var line0 = {type:'LineString', coordinates: geom[0]};
+  var line1;
+  if (geom[1]) {
+    line1 = {type:'LineString', coordinates: geom[1]};
+  }
+  var arc0 = arcs.append('path')
+    .datum(line0)
+    .style('fill', 'none')
+    .style('stroke', function(){
+      return colors[d[4]]
+    })
+    .style('stroke-width', 1)
+    .style('opacity', 0.15)
+    .attr('d', path)
+  var arc0Bright = arcs.append('path')
+    .datum(line0)
+    .style('fill', 'none')
+    .style('stroke', function(){
+      return colors[d[4]]
+    })
+    .style('stroke-width', 4)
+    .style('stroke-linecap', 'round')
+    .attr('d', path)
+    
+  var l0 = arc0.node().getTotalLength();
+  var totalL = l0;
+  var l1;
+  if (line1) {
+    var arc1 = arcs.append('path')
+      .datum(line1)
+      .style('fill', 'none')
+      .style('stroke', function(){
+        return colors[d[4]]
+      })
+      .style('stroke-width', 1)
+      .style('opacity', 0.15)
+      .attr('d', path);
+    l1 = arc1.node().getTotalLength();
+    totalL += l1;
+
+    var arc1Bright = arcs.append('path')
+      .datum(line1)
+      .style('fill', 'none')
+      .style('stroke', function(){
+        return colors[d[4]]
+      })
+      .style('stroke-width', 4)
+      .style('stroke-linecap', 'round')
+      .attr('d', path);
+      
+    arc1.attr('stroke-dasharray', l1 + ', ' + l1)
+      .attr('stroke-dashoffset', l1);
+    arc1Bright.attr('stroke-dasharray', dashLength + ', ' + (l1+dashLength))
+      .attr('stroke-dashoffset', dashLength);
+  }
+  var duration = Math.max(500,1000*totalL/pxPerSec);
+  arc0.attr('stroke-dasharray', l0 + ', ' + l0)
+    .attr('stroke-dashoffset', l0)
+    .transition()
+    .ease(line1 ? d3.easeCubicIn : d3.easeCubic)
+    .duration(.5 * duration * l0/totalL)
+    .attr('stroke-dashoffset', 0)
+    .on('end', function(){
+    //  d3.select(this).remove();
+    });
+  arc0Bright.attr('stroke-dasharray', dashLength + ', ' + (l0+dashLength))
+    .attr('stroke-dashoffset', dashLength)
+    .transition()
+    .ease(line1 ? d3.easeCubicIn : d3.easeCubic)
+    .duration(duration * l0/totalL)
+    .attr('stroke-dashoffset', -l0-dashLength)
+    .on('end', function() {
+      d3.select(this).remove();
+      if (!arc1) arc0.remove();
+    });
+  if (arc1) {
+    var delay = Math.max(0, duration * l0/totalL - 100);
+    arc1
+      .transition()
+      .delay(.5 * delay)
+      .ease(d3.easeCubicOut)
+      .duration(duration * l1/totalL)
+      .attr('stroke-dashoffset', 0)
+      .on('end', function(){
+        //d3.select(this).remove();
+      });
+    arc1Bright
+      .transition()
+      .delay(delay)
+      .ease(d3.easeCubicOut)
+      .duration(duration * l1/totalL)
+      .attr('stroke-dashoffset', -l1-dashLength)
+      .on('end', function() {
+        d3.select(this).remove();
+        arc1.remove();
+        arc0.remove();
+      })
+  }
+}
+
+function drawCountryArcs (countryName) {
+  var points = arcData
+    .filter(function (d) {
+      return d[1] == countryName;
+    })
+    .forEach(function(d){
+      drawArc(d, 300)
+    });
+}
+
+var interval;
+function drawRandom () {
+  interval = setInterval(function () {
+    var i = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i]);
+    var i2 = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i2]);
+    var i3 = Math.floor(Math.random() * arcData.length);
+    drawArc(arcData[i3]);
+  }, 5);
+}
+
+function stop () {
+  clearInterval(interval);
+}
+
+var path2 = d3.geoPath();
+path2.context(bufferContext());
+
+
+
+function bufferContext() {
+  var buffer = [];
+  return {
+    moveTo: function(x, y) { buffer.push([x, y]); },
+    lineTo: function(x, y) { buffer.push([x, y]); },
+    closePath: function() {},
+    buffer: function() { var _ = buffer; buffer = []; return _; }
+  };
+}
+
+</script>
+</body>
