@@ -91,6 +91,8 @@
 </head>
 <body>
 
+<div id="wrapper">
+
 <div id="map"></div>
 
 <div id="ui">
@@ -101,11 +103,19 @@
 
 <p class="credit">By Andy Woodruff, <a href="http://axismaps.com">Axis Maps</a>.</p>
 
+</div>
 
 <script>
 
 var width = 1200;
 var height = 600;
+
+var s = Math.min(1, window.innerWidth / width);
+
+d3.select('#map')
+  .style('transform-origin', '0 0')
+  .style('transform', 'scale(' + s +')')
+  .style('height', s*height + 'px');
 
 var svg;
 var canvas;
