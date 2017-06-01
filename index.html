@@ -118,7 +118,7 @@
 var width = 1200;
 var height = 600;
 
-var s = Math.min(1, Math.min(window.innerWidth, screen.width) / width);
+var s = Math.min(1, window.innerWidth / width);
 
 d3.select('#map')
   .style('transform-origin', '0 0')
@@ -159,7 +159,7 @@ var colors = {
 
 }
 
-if (window.innerWidth < 450) {
+if (screen.width < 450) {
   d3.select('body').classed('mobile', true);
   var mobileStuff = d3.select('#map')
     .append('div')
