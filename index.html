@@ -118,7 +118,7 @@
 var width = 1200;
 var height = 600;
 
-var s = Math.min(1, window.innerWidth / width);
+var s = Math.min(1, Math.min(window.innerWidth, screen.width) / width);
 
 d3.select('#map')
   .style('transform-origin', '0 0')
